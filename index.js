@@ -6,30 +6,13 @@ class Game {
     this.p2 = p2;
     this.chess = new Chess();
     this.room = "" + roomcount;
-    io.to(this.p1.id).emit("start", {
-      color: "w",
-      fen: this.chess.fen()
-    });
-    io.to(this.p2.id).emit("start", {
-      color: "b",
-      fen: this.chess.fen()
-    });
 
     this.p1.join(this.room);
     this.p2.join(this.room);
     let self = this;
 
-    this.getBoard = () => {
-      let letters = "abcdefgh";
-      let board = [];
-      for (let i = 0; i < 8; i++) {
-        board.push([]);
-        for (let j = 0; j < 8; j++) {
-          board[i].push(self.chess.get(letters[i] + (j + 1)));
-        }
-      }
-      return board;
-    };
+    io.to(self.p1.id).emit("start", { color: "w", fen: self.chess.fen() });
+    io.to(self.p2.id).emit("start", { color: "b", fen: self.chess.fen() });
 
     this.move = data => {
       let move = self.chess.move(data);
@@ -39,9 +22,17 @@ class Game {
       }
     };
 
-    io.to(self.room).emit("board", self.getBoard());
     self.p1.on("move", self.move);
     self.p2.on("move", self.move);
+
+    self.p1.on("request:start", () => {
+      console.log("Socket:", self.p1.id, "requested start");
+      io.to(self.p1.id).emit("start", { color: "w", fen: self.chess.fen() });
+    });
+    self.p1.on("request:start", () => {
+      console.log("Socket:", self.p2.id, "requested start");
+      io.to(self.p2.id).emit("start", { color: "b", fen: self.chess.fen() });
+    });
   }
 }
 
