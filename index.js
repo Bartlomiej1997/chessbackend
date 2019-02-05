@@ -3,31 +3,23 @@ const app = express();
 
 const server = require("http").createServer(app);
 
-const io = require("./sockets.js")(server);
+const io = require("socket.io")(server);
 
-
-const Game = require("./Game.js");
-const {Room, roomcount} = require("./Room.js");
-
-let waiting = null;
-
-io.on("connection", socket => {
-  console.log("New connection:", socket.id);
-  if (waiting) {
-    new Game(waiting, socket);
-    waiting = null;
-    roomcount++;
-    console.log("Created new Game room:", roomcount - 1);
-  } else {
-    waiting = socket;
-    let s = waiting;
-    let disc = () => {
-      if (waiting && waiting.id == s.id) waiting = null;
-      console.log("Disconnected:", s.id);
-    };
-    waiting.on("disconnect", disc);
-  }
+const session = require("express-session")({
+  secret:"my-secret",
+  resave: true,
+  saveUninitialized: true
 });
+
+const sharedsession = require("express-socket.io-session")
+
+app.use(session);
+
+io.use(sharedsession(session, {
+  autoSave:true
+}));
+
+const rooms = require("./src/sockets.js")(io);
 
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -38,9 +30,18 @@ app.use(function(req, res, next) {
   next();
 });
 
+app.use(express.static("public"));
+
 app.get("/", (req, res) => {
 });
 
-server.listen(process.env.PORT || 3001);
+app.get("/rooms",(req,res)=>{
+  console.log("Someone is looking for rooms")
+  let roooms={};
+  for(let key in rooms){
+    roooms[key] = rooms[key].info();
+  }
+  res.send(roooms);
+})
 
-app.use(express.static("public"));
+server.listen(process.env.PORT || 3001);
