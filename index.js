@@ -1,72 +1,25 @@
-var roomcount = 0;
-
-class Game {
-  constructor(p1, p2) {
-    this.p1 = p1;
-    this.p2 = p2;
-    this.chess = new Chess();
-    this.room = "" + roomcount;
-
-    this.p1.join(this.room);
-    this.p2.join(this.room);
-    let self = this;
-
-    io.to(self.p1.id).emit("start", { color: "w", fen: self.chess.fen() });
-    io.to(self.p2.id).emit("start", { color: "b", fen: self.chess.fen() });
-
-    this.move = data => {
-      let move = self.chess.move(data);
-      if (move) {
-        console.log(move);
-        io.to(self.room).emit("move", move);
-      }
-    };
-
-    self.p1.on("move", self.move);
-    self.p2.on("move", self.move);
-
-    self.p1.on("request:start", () => {
-      console.log("Socket:", self.p1.id, "requested start");
-      io.to(self.p1.id).emit("start", { color: "w", fen: self.chess.fen() });
-    });
-    self.p1.on("request:start", () => {
-      console.log("Socket:", self.p2.id, "requested start");
-      io.to(self.p2.id).emit("start", { color: "b", fen: self.chess.fen() });
-    });
-  }
-}
-
-let games = [];
-
 const express = require("express");
-
 const app = express();
 
 const server = require("http").createServer(app);
 
 const io = require("socket.io")(server);
 
-const Chess = require("chess.js").Chess;
-
-let waiting = null;
-
-io.on("connection", socket => {
-  console.log("New connection:", socket.id);
-  if (waiting) {
-    new Game(waiting, socket);
-    waiting = null;
-    roomcount++;
-    console.log("Created new Game room:", roomcount - 1);
-  } else {
-    waiting = socket;
-    let s = waiting;
-    let disc = () => {
-      if (waiting && waiting.id == s.id) waiting = null;
-      console.log("Disconnected:", s.id);
-    };
-    waiting.on("disconnect", disc);
-  }
+const session = require("express-session")({
+  secret:"my-secret",
+  resave: true,
+  saveUninitialized: true
 });
+
+const sharedsession = require("express-socket.io-session")
+
+app.use(session);
+
+io.use(sharedsession(session, {
+  autoSave:true
+}));
+
+const rooms = require("./src/sockets.js")(io);
 
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -77,13 +30,18 @@ app.use(function(req, res, next) {
   next();
 });
 
-app.get("/", (req, res) => {
-  let c = new Chess();
+app.use(express.static("public"));
 
-  res.send(c.fen());
-  console.log("yesyesyesyes");
+app.get("/", (req, res) => {
 });
 
-server.listen(process.env.PORT || 3001);
+app.get("/rooms",(req,res)=>{
+  console.log("Someone is looking for rooms")
+  let roooms={};
+  for(let key in rooms){
+    roooms[key] = rooms[key].info();
+  }
+  res.send(roooms);
+})
 
-app.use(express.static("public"));
+server.listen(process.env.PORT || 3001);
