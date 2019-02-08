@@ -12,24 +12,49 @@ module.exports = io => {
     }
 
     join(socket) {
+      let self = this;
       let g = this.game;
       this.users.push(socket);
       socket.join(this.id);
       if (this.game.status == 0) this.game.addPlayer(socket);
       else {
-        socket.on("get user info", data =>
+      console.log("User:".green,socket.id.white.underline,"was added as".green,"spectator".cyan)
+        socket.on("get user info", data => {
+          console.log(
+            "User:".cyan,
+            socket.id.white.underline,
+            "asks for user info".cyan,
+            "in room:".cyan,
+            self.room.white.underline
+          );
           io.to(socket.id).emit("joined", {
             color: "spectator",
             fen: g.getFen()
-          })
-        );
+          });
+        });
         io.to(socket.id).emit("joined", {
           color: "spectator",
           fen: this.game.getFen()
         });
       }
       socket.on("get fen", () => {
+        console.log(
+          "User:".cyan,
+          socket.id.white.underline,
+          "asks for fen".cyan,
+          "in room:".cyan,
+          self.room.white.underline
+        );
         io.to(socket.id).emit("fen", { fen: g.getFen() });
+      });
+      socket.on("leave", data => {
+        if (data.color == "spectator") {
+          let index = self.users.indexOf(socket);
+          if (index > -1) {
+            self.users.splice(index, 1);
+          }
+          io.emit("room update", self.info());
+        }
       });
     }
 

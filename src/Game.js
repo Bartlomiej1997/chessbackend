@@ -22,6 +22,7 @@ module.exports = io => {
         color,
         time: this.time
       });
+      console.log("User:".green,sock.id.white.underline,"was added as".green,color=="w"?"white".bgWhite.black:"black".bgBlack.white,"player".green)
       io.to(sock.id).emit("joined", { color, fen:this.getFen() });
       if (this.players.length == 2) this.start();
 
@@ -37,7 +38,15 @@ module.exports = io => {
       for (let i = 0; i < this.players.length; i++) {
         let p1 = this.players[i];
         let p2 = this.players[other(i)];
-        p1.sock.on("move", data => this.onMove(this, data));
+        p1.sock.on("move", data => {
+          console.log(
+            "User:".blue,
+            p1.sock.id.white.underline,
+            "made a move".blue,
+            "in room:".blue,
+            self.room.white.underline
+          );
+          this.onMove(this, data)});
         p1.sock.on("resign", () =>
           io.to(self.room).emit("game_over", {
             winner: p2.color,
@@ -69,7 +78,6 @@ module.exports = io => {
     }
 
     onMove(self, data) {
-      console.log("Move");
       let move = self.chess.move(data);
       if (move) {
         if (self.chess.game_over()) self.status = 2;
