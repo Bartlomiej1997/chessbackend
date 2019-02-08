@@ -1,5 +1,11 @@
+require("colors");
 const express = require("express");
+var bodyParser = require('body-parser')
 const app = express();
+
+
+app.use(bodyParser.urlencoded({ extended: true }))
+app.use(bodyParser.json())
 
 const server = require("http").createServer(app);
 
@@ -14,12 +20,7 @@ const session = require("express-session")({
 const sharedsession = require("express-socket.io-session")
 
 app.use(session);
-
-io.use(sharedsession(session, {
-  autoSave:true
-}));
-
-const rooms = require("./src/sockets.js")(io);
+io.use(sharedsession(session));
 
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
@@ -32,11 +33,16 @@ app.use(function(req, res, next) {
 
 app.use(express.static("public"));
 
+const rooms = require("./src/sockets.js")(io);
+
+require("./src/login")(app);
+
+
 app.get("/", (req, res) => {
 });
 
 app.get("/rooms",(req,res)=>{
-  console.log("Someone is looking for rooms")
+  console.log("Someone is looking for rooms".cyan)
   let roooms={};
   for(let key in rooms){
     roooms[key] = rooms[key].info();
@@ -44,4 +50,9 @@ app.get("/rooms",(req,res)=>{
   res.send(roooms);
 })
 
-server.listen(process.env.PORT || 3001);
+const PORT =process.env.PORT || 3001; 
+
+server.listen(PORT, ()=>{
+  console.log("Server has started on port:".bold.cyan,`${PORT}`.white.underline)
+});
+
