@@ -1,4 +1,12 @@
-require("colors");
+const colors = require("colors");
+colors.setTheme({
+  warn:'yellow',
+  fail:'red',
+  success:'green',
+  id:['white','underline'],
+  info:'cyan',
+  action:'blue'
+})
 const express = require("express");
 var bodyParser = require('body-parser')
 const app = express();
@@ -42,7 +50,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/rooms",(req,res)=>{
-  console.log("Someone is looking for rooms".cyan)
+  console.log("Someone is looking for rooms".info)
   let roooms={};
   for(let key in rooms){
     roooms[key] = rooms[key].info();
@@ -53,6 +61,6 @@ app.get("/rooms",(req,res)=>{
 const PORT =process.env.PORT || 3001; 
 
 server.listen(PORT, ()=>{
-  console.log("Server has started on port:".bold.cyan,`${PORT}`.white.underline)
+  console.log("Server has started on port:".info,`${PORT}`.id)
 });
 
