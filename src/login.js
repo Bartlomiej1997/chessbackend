@@ -4,21 +4,21 @@ module.exports = app => {
   app.post("/login", (req, res) => {});
 
   app.post("/auth", (req, res) => {
-    console.log("Someone trying to authenticate".cyan);
+    console.log("Someone trying to authenticate".info);
     if (req.session.userID) {
       console.log(
-        "User:".yellow,
-        res.session.userID.white.underline,
-        "is already authenticated!".yellow
+        "User:".warn,
+        req.session.userID.id,
+        "is already authenticated!".warn
       );
       res.send(true);
       return;
     }
     req.session.userID = "n" + nextID;
     console.log(
-      "User".green,
-      "got authenticated with id:".green,
-      req.session.userID.white.underline
+      "User".success,
+      "got authenticated with id:".success,
+      req.session.userID.id
     );
     nextID++;
     res.send(true);

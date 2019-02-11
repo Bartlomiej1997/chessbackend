@@ -1,13 +1,14 @@
 module.exports = io => {
   let nextID = 1;
 
-  function isAuthed(sock){
-    if(sock.handshake.session.userID){
-      console.log("This socket belongs to user:".cyan, `${sock.handshake.session.userID}`.white.underline);
+  function isAuthed(sock) {
+    if (sock.handshake.session.userID) {
+      console.log("This socket belongs to user:".info, `${sock.handshake.session.userID}`.id);
       io.to(sock.id).emit("authed");
+      setEvents(sock);
       return true;
     }
-    console.log("This socket is not authenticated! Emitting authentication signal!".yellow);
+    console.log("This socket is not authenticated! Emitting authentication signal!".warn);
     io.to(sock.id).emit("auth");
     return false;
   }
@@ -15,22 +16,20 @@ module.exports = io => {
   const Room = require("./Room.js")(io);
   let rooms = {};
 
-  io.on("connection", socket => {
-    console.log("New connection:".green, socket.id.white.underline);
-    if(!isAuthed(socket)){
-      socket.disconnect();
-      return;
-    }
+
+
+  function setEvents(socket) {
+    let UID = socket.handshake.session.userID;
     socket.on("search for game", data => {
       console.log(
-        "User:".cyan,
-        socket.id.white.underline,
-        "is looking for game".cyan
+        "User:".info,
+        `${UID}`.id,
+        "is looking for game".info
       );
       for (let key in rooms) {
         let room = rooms[key];
         if (room.gameStatus() === "waiting") {
-          console.log("User found game:".green, room.id.white.underline);
+          console.log("User found game:".green, room.id.id);
           io.emit("room update", room.info());
           io.to(socket.id).emit("game found", { id: room.id });
           return;
@@ -43,7 +42,7 @@ module.exports = io => {
         d.getMilliseconds() +
         Math.floor(Math.random() * 20);
       rooms[id] = new Room(id, data.time, data.increment);
-      console.log("Created room:".green, id + "".white.underline);
+      console.log("Created room:".green, `${id}`.id);
       //rooms[id].join(socket);
       io.emit("room update", rooms[id].info());
       io.to(socket.id).emit("game found", { id });
@@ -51,27 +50,32 @@ module.exports = io => {
 
     socket.on("connect to room", data => {
       console.log(
-        "User:".cyan,
-        socket.id.white.underline,
-        "trying to connect to room:".cyan,
-        data.id.white.underline
+        "User:".info,
+        `${UID}`.id,
+        "trying to connect to room:".info,
+        data.id.id
       );
       if (rooms[data.id]) {
         rooms[data.id].join(socket);
-        io.emit("room update", rooms[data.id].info());
       } else {
         io.to(socket.id).emit("unable to connect", { reason: "invalid id" });
-        console.log("Room:".red, data.id.white.underline, "doesn't exist!".red);
+        console.log("Room:".fail, data.id.id, "doesn't exist!".fail);
       }
     });
 
     socket.on("disconnect", () => {
       console.log(
-        "Socket:".red,
-        socket.id.white.underline,
-        "disconnected!".red
+        "Socket:".fail,
+        `${UID}`.id,
+        "disconnected!".fail
       );
     });
+  }
+
+  io.on("connection", socket => {
+    console.log("New connection:".green, socket.id.id);
+    isAuthed(socket);
+    socket.on("setEvents", ()=>setEvents(socket));
   });
 
   return rooms;

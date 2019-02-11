@@ -17,50 +17,92 @@ module.exports = io => {
         color = this.players[0].color == "w" ? "b" : "w";
       else return;
       sock.join(this.gameRoom);
-      this.players.push({
+      let player = {
+        id: sock.handshake.session.userID,
         sock,
         color,
-        time: this.time
-      });
-      console.log("User:".green,sock.id.white.underline,"was added as".green,color=="w"?"white".bgWhite.black:"black".bgBlack.white,"player".green)
-      io.to(sock.id).emit("joined", { color, fen:this.getFen() });
-      if (this.players.length == 2) this.start();
-
-    }
-
-    start() {
-      this.status = 1;
-      let self = this;
-      let other = i => {
-        if (i == 0) return 1;
-        else return 0;
+        time: this.time,
+        disconnectTimer: null,
+        isDisconnected: false
       };
-      for (let i = 0; i < this.players.length; i++) {
-        let p1 = this.players[i];
-        let p2 = this.players[other(i)];
-        p1.sock.on("move", data => {
-          console.log(
-            "User:".blue,
-            p1.sock.id.white.underline,
-            "made a move".blue,
-            "in room:".blue,
-            self.room.white.underline
-          );
-          this.onMove(this, data)});
-        p1.sock.on("resign", () =>
-          io.to(self.room).emit("game_over", {
-            winner: p2.color,
-            reason: "resignation"
-          })
-        );
-        p1.sock.on("offer draw", () => io.to(p2.sock.id).emit("draw offered"));
-        p1.sock.on("accept draw", () => {
-          io.to(p2.sock.id).emit("draw accepted");
-          io.to(self.room).emit("draw", { reason: "accepted" });
-        });
+      this.players.push(player);
+      console.log("User:".success, sock.id.id, "was added as".success, color == "w" ? "white".bgWhite.black : "black".bgBlack.white, "player".success)
+      this.setEvents(player);
+      if (this.players.length == 2) {
+        this.status = 1;
+        io.to(this.gameRoom).emit("start");
       }
-      io.to(this.gameRoom).emit("start");
+
     }
+
+    isPlaying(UID){
+      for(let p of this.players){
+        if(p.id == UID) return true;
+      }
+      return false;
+    }
+
+    reconnectPlayer(sock) {
+      for (let p of this.players) {
+        if (p.id == sock.handshake.session.userID && p.isDisconnected) {
+          console.log("User:".success, `${sock.id}`.id, "successfully reconnected as ".success, p.color == "w" ? "white".bgWhite.black : "black".bgBlack.white, "player".success)
+          p.sock = sock;
+          p.isDisconnected = false;
+          this.setEvents(p);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    setEvents(p) {
+      let self = this;
+      let sock = p.sock;
+
+      io.to(sock.id).emit("joined", { color: p.color, fen: this.getFen() });
+
+      sock.on("disconnect", () => {
+        p.isDisconnected = true;
+        p.disconnectTimer = setTimeout(() => {
+          io.to(self.room).emit("disconnected", { color: p.color });
+        }, 5000);
+      });
+
+      sock.on("move", data => {
+        console.log(
+          "User:".action,
+          sock.id.id,
+          "made a move".action,
+          "in room:".action,
+          `${self.room}`.id
+        );
+        this.onMove(this, data)
+      });
+
+      sock.on("resign", () => {
+        console.log("Player:".info, `${p.id}`.id, "resigned in room:".info, `${self.room}`.id);
+        self.status = 2;
+        io.to(self.room).emit("game_over", {
+          winner: p.color == "w" ? "b" : "w",
+          reason: "resignation"
+        })
+      }
+      );
+
+      sock.on("offer draw", () => {
+        console.log("Player:".info, `${p.id}`.id, "offered draw in room:".info, `${self.room}`.id);
+        sock.to(self.gameRoom).emit("draw offered")
+      });
+
+      sock.on("accept draw", () => {
+        console.log("Player:".info, `${p.id}`.id, "accepted draw in room:".info, `${self.room}`.id);
+        self.status = 2;
+        sock.to(self.gameRoom).emit("draw accepted");
+        io.to(self.room).emit("draw", { reason: "accepted" });
+      });
+    }
+
+
 
     getFen() {
       return this.chess.fen();
