@@ -35,9 +35,9 @@ module.exports = io => {
 
     }
 
-    isPlaying(UID){
-      for(let p of this.players){
-        if(p.id == UID) return true;
+    isPlaying(UID) {
+      for (let p of this.players) {
+        if (p.id == UID) return true;
       }
       return false;
     }
@@ -59,9 +59,10 @@ module.exports = io => {
       let self = this;
       let sock = p.sock;
 
-      io.to(sock.id).emit("joined", { color: p.color, fen: this.getFen() });
+      io.to(sock.id).emit("joined", { color: p.color, fen: this.getFen(), time: this.time, increment: this.increment });
 
       sock.on("disconnect", () => {
+        if(self.status==2) return;
         p.isDisconnected = true;
         p.disconnectTimer = setTimeout(() => {
           io.to(self.room).emit("disconnected", { color: p.color });
@@ -82,7 +83,7 @@ module.exports = io => {
       sock.on("resign", () => {
         console.log("Player:".info, `${p.id}`.id, "resigned in room:".info, `${self.room}`.id);
         self.status = 2;
-        io.to(self.room).emit("game_over", {
+        io.to(self.room).emit("game over", {
           winner: p.color == "w" ? "b" : "w",
           reason: "resignation"
         })
@@ -97,12 +98,10 @@ module.exports = io => {
       sock.on("accept draw", () => {
         console.log("Player:".info, `${p.id}`.id, "accepted draw in room:".info, `${self.room}`.id);
         self.status = 2;
-        sock.to(self.gameRoom).emit("draw accepted");
-        io.to(self.room).emit("draw", { reason: "accepted" });
+        io.to(self.room).emit("game over", { reason: "draw", type: "accepted" });
       });
+
     }
-
-
 
     getFen() {
       return this.chess.fen();
@@ -122,26 +121,43 @@ module.exports = io => {
     onMove(self, data) {
       let move = self.chess.move(data);
       if (move) {
-        if (self.chess.game_over()) self.status = 2;
         if (self.chess.in_check()) move.flags = "ch";
         io.to(self.room).emit("move", move);
+        if (self.chess.game_over()) self.gameOver();
+      }
+    }
 
-        if (self.chess.in_checkmate()) {
-          let color = self.chess.turn();
-          color = color == "w" ? "b" : "w";
-          io.to(self.room).emit("game_over", {
-            winner: color,
-            reason: "checkmate"
-          });
-        } else if (self.chess.in_stalemate()) {
-          io.to(self.room).emit("stalemate");
-        } else if (self.chess.in_draw()) {
-          let reason = "50";
-          if (self.chess.insufficient_material()) reason = "insufficient";
-          io.to(self.room).emit("draw", { reason });
-        } else if (self.chess.in_threefold_repetition()) {
-          io.to(self.room).emit("draw", { reason: "repetition" });
-        }
+    gameOver() {
+      this.status = 2;
+      if (this.chess.in_checkmate()) {
+        let color = this.chess.turn();
+        color = color == "w" ? "b" : "w";
+        io.to(this.room).emit("game over", {
+          winner: color,
+          reason: "checkmate"
+        });
+      } else if (this.chess.in_stalemate()) {
+        io.to(this.room).emit("game over", {
+          reason: "draw",
+          type: "stalemate"
+        });
+      } else if (this.chess.in_draw()) {
+        let type = "50";
+        if (this.chess.insufficient_material()) type = "insufficient";
+        else if (this.chess.in_threefold_repetition()) type = "repetition"
+        io.to(this.room).emit("game over", {
+          reason: "draw",
+          type
+        });
+      }
+    }
+
+    removeListeners(){
+      for(let p of this.players){
+        p.off("move");
+        p.off("resign");
+        p.off("accept draw");
+        p.off("offer draw");
       }
     }
   }

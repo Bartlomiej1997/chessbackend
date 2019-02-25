@@ -19,6 +19,8 @@ module.exports = io => {
 
 
   function setEvents(socket) {
+    console.log("setting events")
+    socket.handshake.session.reload((err)=>console.log(err));
     let UID = socket.handshake.session.userID;
     socket.on("search for game", data => {
       console.log(
@@ -75,7 +77,7 @@ module.exports = io => {
   io.on("connection", socket => {
     console.log("New connection:".green, socket.id.id);
     isAuthed(socket);
-    socket.on("setEvents", ()=>setEvents(socket));
+    socket.on("setEvents", () => setEvents(socket));
   });
 
   return rooms;
