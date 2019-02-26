@@ -35,15 +35,21 @@ module.exports = io => {
             );
             io.to(socket.id).emit("joined", {
               color: "spectator",
-              fen: g.getFen()
+              fen: g.getFen(),
+              time:self.time,
+              increment:self.increment
             });
+            
           });
           io.to(socket.id).emit("joined", {
             color: "spectator",
-            fen: this.game.getFen()
+            fen: this.game.getFen(),
+            time:this.time,
+            increment:this.increment
           });
         }
       }
+
       socket.on("get fen", () => {
         console.log(
           "User:".info,
@@ -54,6 +60,7 @@ module.exports = io => {
         );
         io.to(socket.id).emit("fen", { fen: g.getFen() });
       });
+
       socket.on("disconnect", () => {
         self.users[UID].socks--;
         if (self.users[UID].socks == 0) {
@@ -62,6 +69,7 @@ module.exports = io => {
           io.emit("room update", self.info());
         }
       });
+
     }
 
     gameStatus() {

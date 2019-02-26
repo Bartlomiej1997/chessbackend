@@ -47,6 +47,7 @@ require("./src/login")(app);
 
 
 app.get("/", (req, res) => {
+
 });
 
 app.get("/rooms",(req,res)=>{
@@ -58,8 +59,8 @@ app.get("/rooms",(req,res)=>{
   res.send(roooms);
 })
 
-const PORT =process.env.PORT || 3001; 
-  
+const PORT = process.env.PORT || 3001; 
+
 server.listen(PORT, ()=>{
   console.log("Server has started on port:".info,`${PORT}`.id)
 });
