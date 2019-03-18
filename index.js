@@ -5,7 +5,8 @@ colors.setTheme({
   success:'green',
   id:['white','underline'],
   info:'cyan',
-  action:'blue'
+  action:'blue',
+  chat:['white', 'bgRed']
 })
 const express = require("express");
 var bodyParser = require('body-parser');

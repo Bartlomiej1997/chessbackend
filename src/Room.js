@@ -2,16 +2,19 @@ const Chess = require("chess.js").Chess;
 
 module.exports = io => {
   const Game = require("./Game.js")(io);
+  const Chat = require("./Chat.js")(io);
   class Room {
     constructor(id, time, increment) {
       this.id = id;
       this.game = new Game(new Chess(), id, time, increment);
+      this.chat = new Chat(id);
       this.users = {};
       this.time = time;
       this.increment = increment;
     }
 
     join(socket) {
+      this.chat.setEvents(socket);
       let UID = socket.handshake.session.userID;
       let self = this;
       let g = this.game;
